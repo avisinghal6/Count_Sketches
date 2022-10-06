@@ -19,7 +19,7 @@ random.seed(2315);
 path=os.path.abspath(os.getcwd())+"/user-ct-test-collection-01.txt";
 data = pd.read_csv(path, sep="\t");
 querylist = data.Query.dropna();
-# print(querylist.shape);
+
 
 class dict_func:
     def __init__(self):
@@ -69,11 +69,17 @@ class MINSketches:
         for i in range(self.d):
             self.sketch[i][self.hash[i](x)]+=1;
         # print(x,self.dictionary[x])
-    def query(self,x):
-        m=sys.maxsize;
-        for i in range(self.d):
-            m=min(m,self.sketch[i][self.hash[i](x)]);
-        return m;
+    def query(self,x,type):
+        if(type=='min'):
+            m=sys.maxsize;
+            for i in range(self.d):
+                m=min(m,self.sketch[i][self.hash[i](x)]);
+            return m;
+        else:
+            medlist=[];
+            for i in range(self.d):
+                medlist.append(self.sketch[i][self.hash[i](x)]);
+            return statistics.median(medlist);
  
     def hashfunc(self,m):
         a=self.hashseed+self.count;
@@ -83,7 +89,7 @@ class MINSketches:
             return murmurhash3_32(x,a,True) % m ;
         return murmur;
 
-class MEDIANSketches:
+class CountSketches:
 
     def __init__(self,d,r):
         self.d=d;
@@ -141,6 +147,7 @@ for s in querylist:
     for l in li:
         dict_obj.insert(l);
 
+# print(len(dict_obj.dictionary));
 FREQ=dict_obj.freq100();
 INFREQ=dict_obj.infreq100();
 RAND=dict_obj.rand100();
@@ -148,26 +155,32 @@ X=[];
 Y=[];
 for i in [2**10,2**14,2**18]:
     MinSketch=MINSketches(5,i);
-    MedianSketch=MEDIANSketches(5,i);
+    MedianSketch=MINSketches(5,i);
+    CountSketch=CountSketches(5,i);
     for s in querylist:
         li=s.split(" ");
         for l in li:
             MinSketch.insert(l);
+            CountSketch.insert(l);
             MedianSketch.insert(l);
             
     x=[]
     y1=np.zeros(100);
     y2=np.zeros(100);
+    y3=np.zeros(100);
     for j in range(100):
         s,c=FREQ[j];
-        sc1=MinSketch.query(s)
-        sc2=MedianSketch.query(s)
+        sc1=MinSketch.query(s,'min')
+        sc2=CountSketch.query(s)
+        sc3=MedianSketch.query(s,'median');
         y1[j]=abs(sc1-c)/c;
         y2[j]=abs(sc2-c)/c;
+        y3[j]=abs(sc3-c)/c;
         x.append(s);
     plt.figure();
     plt.plot(x, y1,'r',label='minsketch');
-    plt.plot(x, y2,'g',label='mediansketch');
+    plt.plot(x, y2,'g',label='countsketch');
+    plt.plot(x, y3,'b',label='mediansketch');
     plt.legend(loc="upper left")
     plt.title("Max 100 Frequency :%s"%i);
     plt.xlabel('Words');
@@ -178,14 +191,17 @@ for i in [2**10,2**14,2**18]:
     y2=np.zeros(100);
     for j in range(100):
         s,c=INFREQ[j];
-        sc1=MinSketch.query(s)
-        sc2=MedianSketch.query(s)
+        sc1=MinSketch.query(s,'min')
+        sc2=CountSketch.query(s)
+        sc3=MedianSketch.query(s,'median');
         y1[j]=abs(sc1-c)/c;
         y2[j]=abs(sc2-c)/c;
+        y3[j]=abs(sc3-c)/c;
         x.append(s);
     plt.figure();
     plt.plot(x, y1,'r',label='minsketch');
-    plt.plot(x, y2,'g',label='mediansketch');
+    plt.plot(x, y2,'g',label='countsketch');
+    plt.plot(x, y3,'b',label='mediansketch');
     plt.legend(loc="upper left")
     plt.title("Lowest 100 Frequency :%s"%i);
     plt.xlabel('Words');
@@ -196,14 +212,17 @@ for i in [2**10,2**14,2**18]:
     y2=np.zeros(100);
     for j in range(100):
         s,c=RAND[j];
-        sc1=MinSketch.query(s)
-        sc2=MedianSketch.query(s)
+        sc1=MinSketch.query(s,'min')
+        sc2=CountSketch.query(s)
+        sc3=MedianSketch.query(s,'median');
         y1[j]=abs(sc1-c)/c;
         y2[j]=abs(sc2-c)/c;
+        y3[j]=abs(sc3-c)/c;
         x.append(s);
     plt.figure();
     plt.plot(x, y1,'r',label='minsketch');
-    plt.plot(x, y2,'g',label='mediansketch');
+    plt.plot(x, y2,'g',label='countsketch');
+    plt.plot(x, y3,'b',label='mediansketch');
     plt.legend(loc="upper left")
     plt.title("Random 100 Frequency :%s"%i);
     plt.xlabel('Words');
